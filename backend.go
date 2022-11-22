@@ -1,4 +1,4 @@
-package mock
+package vra
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type backend struct {
 
 var _ logical.Factory = Factory
 
-// Factory configures and returns Mock backends
+// Factory configures and returns VRA backends
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	b, err := newBackend()
 	if err != nil {
@@ -41,7 +41,7 @@ func newBackend() (*backend, error) {
 	b := &backend{}
 
 	b.Backend = &framework.Backend{
-		Help:        strings.TrimSpace(mockHelp),
+		Help:        strings.TrimSpace(vraHelp),
 		BackendType: logical.TypeLogical,
 		Paths: framework.PathAppend(
 			b.paths(),
@@ -172,6 +172,6 @@ func (b *backend) handleDelete(ctx context.Context, req *logical.Request, data *
 	return nil, nil
 }
 
-const mockHelp = `
-The Mock backend is a dummy secrets backend that stores kv pairs in a map.
+const vraHelp = `
+The VRA backend is a dummy secrets backend that stores kv pairs in a map.
 `
