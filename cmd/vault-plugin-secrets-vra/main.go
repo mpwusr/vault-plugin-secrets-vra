@@ -1,11 +1,10 @@
 package main
 
 import (
-	vra "github.com/mpwusr/vault-plugin-secrets-vra"
-	"os"
-
+	vra "github.com/hashicorp/vault-guides/plugins/vault-plugin-secrets-mock"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/plugin"
+	"os"
 )
 
 func main() {
