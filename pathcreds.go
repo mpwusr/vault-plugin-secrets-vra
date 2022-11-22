@@ -13,7 +13,7 @@ import (
 // endpoint for a role. You can choose whether
 // or not certain attributes should be displayed,
 // required, and named.
-func pathCredentials(b *hashiCupsBackend) *framework.Path {
+func pathCredentials(b *vraBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "creds/" + framework.GenericNameRegex("name"),
 		Fields: map[string]*framework.FieldSchema{
@@ -32,9 +32,9 @@ func pathCredentials(b *hashiCupsBackend) *framework.Path {
 	}
 }
 
-// pathCredentialsRead creates a new HashiCups token each time it is called if a
+// pathCredentialsRead creates a new vra token each time it is called if a
 // role exists.
-func (b *hashiCupsBackend) pathCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) pathCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	roleName := d.Get("name").(string)
 
 	roleEntry, err := b.getRole(ctx, req.Storage, roleName)
@@ -49,9 +49,9 @@ func (b *hashiCupsBackend) pathCredentialsRead(ctx context.Context, req *logical
 	return b.createUserCreds(ctx, req, roleEntry)
 }
 
-// createUserCreds creates a new HashiCups token to store into the Vault backend, generates
+// createUserCreds creates a new VRA token to store into the Vault backend, generates
 // a response with the secrets information, and checks the TTL and MaxTTL attributes.
-func (b *hashiCupsBackend) createUserCreds(ctx context.Context, req *logical.Request, role *hashiCupsRoleEntry) (*logical.Response, error) {
+func (b *vraBackend) createUserCreds(ctx context.Context, req *logical.Request, role *vraRoleEntry) (*logical.Response, error) {
 	token, err := b.createToken(ctx, req.Storage, role)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (b *hashiCupsBackend) createUserCreds(ctx context.Context, req *logical.Req
 	// The response is divided into two objects (1) internal data and (2) data.
 	// If you want to reference any information in your code, you need to
 	// store it in internal data!
-	resp := b.Secret(hashiCupsTokenType).Response(map[string]interface{}{
+	resp := b.Secret(vraTokenType).Response(map[string]interface{}{
 		"token":    token.Token,
 		"token_id": token.TokenID,
 		"user_id":  token.UserID,
@@ -80,33 +80,32 @@ func (b *hashiCupsBackend) createUserCreds(ctx context.Context, req *logical.Req
 	return resp, nil
 }
 
-// createToken uses the HashiCups client to sign in and get a new token
-func (b *hashiCupsBackend) createToken(ctx context.Context, s logical.Storage, roleEntry *hashiCupsRoleEntry) (*hashiCupsToken, error) {
+// createToken uses the VRA client to sign in and get a new token
+func (b *vraBackend) createToken(ctx context.Context, s logical.Storage, roleEntry *vraRoleEntry) (*vraToken, error) {
 	client, err := b.getClient(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-
-	var token *hashiCupsToken
+	var token *vraToken
 
 	token, err = createToken(ctx, client, roleEntry.Username)
 	if err != nil {
-		return nil, fmt.Errorf("error creating HashiCups token: %w", err)
+		return nil, fmt.Errorf("error creating VRA token: %w", err)
 	}
 
 	if token == nil {
-		return nil, errors.New("error creating HashiCups token")
+		return nil, errors.New("error creating VRA token")
 	}
 
 	return token, nil
 }
 
 const pathCredentialsHelpSyn = `
-Generate a HashiCups API token from a specific Vault role.
+Generate a VRA API token from a specific Vault role.
 `
 
 const pathCredentialsHelpDesc = `
-This path generates a HashiCups API user tokens
+This path generates a VRA API user tokens
 based on a particular role. A role can only represent a user token,
-since HashiCups doesn't have other types of tokens.
+since vra doesn't have other types of tokens.
 `

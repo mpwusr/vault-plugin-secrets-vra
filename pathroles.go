@@ -9,10 +9,10 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-// hashiCupsRoleEntry defines the data required
+// vraRoleEntry defines the data required
 // for a Vault role to access and call the HashiCups
 // token endpoints
-type hashiCupsRoleEntry struct {
+type vraRoleEntry struct {
 	Username string        `json:"username"`
 	UserID   int           `json:"user_id"`
 	Token    string        `json:"token"`
@@ -22,7 +22,7 @@ type hashiCupsRoleEntry struct {
 }
 
 // toResponseData returns response data for a role
-func (r *hashiCupsRoleEntry) toResponseData() map[string]interface{} {
+func (r *vraRoleEntry) toResponseData() map[string]interface{} {
 	respData := map[string]interface{}{
 		"ttl":      r.TTL.Seconds(),
 		"max_ttl":  r.MaxTTL.Seconds(),
@@ -36,7 +36,7 @@ func (r *hashiCupsRoleEntry) toResponseData() map[string]interface{} {
 // or not certain attributes should be displayed,
 // required, and named. You can also define different
 // path patterns to list all roles.
-func pathRole(b *hashiCupsBackend) []*framework.Path {
+func pathRole(b *vraBackend) []*framework.Path {
 	return []*framework.Path{
 		{
 			Pattern: "role/" + framework.GenericNameRegex("name"),
@@ -48,7 +48,7 @@ func pathRole(b *hashiCupsBackend) []*framework.Path {
 				},
 				"username": {
 					Type:        framework.TypeString,
-					Description: "The username for the HashiCups product API",
+					Description: "The username for the VRA product API",
 					Required:    true,
 				},
 				"ttl": {
@@ -91,7 +91,7 @@ func pathRole(b *hashiCupsBackend) []*framework.Path {
 }
 
 // pathRolesList makes a request to Vault storage to retrieve a list of roles for the backend
-func (b *hashiCupsBackend) pathRolesList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) pathRolesList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	entries, err := req.Storage.List(ctx, "role/")
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (b *hashiCupsBackend) pathRolesList(ctx context.Context, req *logical.Reque
 }
 
 // pathRolesRead makes a request to Vault storage to read a role and return response data
-func (b *hashiCupsBackend) pathRolesRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) pathRolesRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	entry, err := b.getRole(ctx, req.Storage, d.Get("name").(string))
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func (b *hashiCupsBackend) pathRolesRead(ctx context.Context, req *logical.Reque
 }
 
 // pathRolesWrite makes a request to Vault storage to update a role based on the attributes passed to the role configuration
-func (b *hashiCupsBackend) pathRolesWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) pathRolesWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	name, ok := d.GetOk("name")
 	if !ok {
 		return logical.ErrorResponse("missing role name"), nil
@@ -129,7 +129,7 @@ func (b *hashiCupsBackend) pathRolesWrite(ctx context.Context, req *logical.Requ
 	}
 
 	if roleEntry == nil {
-		roleEntry = &hashiCupsRoleEntry{}
+		roleEntry = &vraRoleEntry{}
 	}
 
 	createOperation := (req.Operation == logical.CreateOperation)
@@ -164,17 +164,17 @@ func (b *hashiCupsBackend) pathRolesWrite(ctx context.Context, req *logical.Requ
 }
 
 // pathRolesDelete makes a request to Vault storage to delete a role
-func (b *hashiCupsBackend) pathRolesDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) pathRolesDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	err := req.Storage.Delete(ctx, "role/"+d.Get("name").(string))
 	if err != nil {
-		return nil, fmt.Errorf("error deleting hashiCups role: %w", err)
+		return nil, fmt.Errorf("error deleting vra role: %w", err)
 	}
 
 	return nil, nil
 }
 
 // setRole adds the role to the Vault storage API
-func setRole(ctx context.Context, s logical.Storage, name string, roleEntry *hashiCupsRoleEntry) error {
+func setRole(ctx context.Context, s logical.Storage, name string, roleEntry *vraRoleEntry) error {
 	entry, err := logical.StorageEntryJSON("role/"+name, roleEntry)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func setRole(ctx context.Context, s logical.Storage, name string, roleEntry *has
 }
 
 // getRole gets the role from the Vault storage API
-func (b *hashiCupsBackend) getRole(ctx context.Context, s logical.Storage, name string) (*hashiCupsRoleEntry, error) {
+func (b *vraBackend) getRole(ctx context.Context, s logical.Storage, name string) (*vraRoleEntry, error) {
 	if name == "" {
 		return nil, fmt.Errorf("missing role name")
 	}
@@ -206,7 +206,7 @@ func (b *hashiCupsBackend) getRole(ctx context.Context, s logical.Storage, name 
 		return nil, nil
 	}
 
-	var role hashiCupsRoleEntry
+	var role vraRoleEntry
 
 	if err := entry.DecodeJSON(&role); err != nil {
 		return nil, err
@@ -215,12 +215,12 @@ func (b *hashiCupsBackend) getRole(ctx context.Context, s logical.Storage, name 
 }
 
 const (
-	pathRoleHelpSynopsis    = `Manages the Vault role for generating HashiCups tokens.`
+	pathRoleHelpSynopsis    = `Manages the Vault role for generating vra tokens.`
 	pathRoleHelpDescription = `
-This path allows you to read and write roles used to generate HashiCups tokens.
+This path allows you to read and write roles used to generate vra tokens.
 You can configure a role to manage a user's token by setting the username field.
 `
 
-	pathRoleListHelpSynopsis    = `List the existing roles in HashiCups backend`
+	pathRoleListHelpSynopsis    = `List the existing roles in vra backend`
 	pathRoleListHelpDescription = `Roles will be listed by the role name.`
 )

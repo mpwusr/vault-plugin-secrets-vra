@@ -13,10 +13,10 @@ import (
 )
 
 // backend wraps the backend framework and adds a map for storing key value pairs
-type backend struct {
+type vraBackend struct {
 	*framework.Backend
 	lock   sync.RWMutex
-	client *Client
+	client *vraClient
 }
 
 var _ logical.Factory = Factory
@@ -39,8 +39,8 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 	return b, nil
 }
 
-func newBackend() (*backend, error) {
-	b := &backend{}
+func newBackend() (*vraBackend, error) {
+	b := &vraBackend{}
 
 	b.Backend = &framework.Backend{
 		Help: strings.TrimSpace(vraHelp),
@@ -52,14 +52,14 @@ func newBackend() (*backend, error) {
 			},
 		},
 		Paths: framework.PathAppend(
-			pathRole(&b),
+			pathRole(b),
 			[]*framework.Path{
-				pathConfig(&b),
-				pathCredentials(&b),
+				pathConfig(b),
+				pathCredentials(b),
 			},
 		),
 		Secrets: []*framework.Secret{
-			b.ClientToken(),
+			b.vraToken(),
 		},
 		BackendType: logical.TypeLogical,
 		Invalidate:  b.invalidate,
@@ -68,7 +68,7 @@ func newBackend() (*backend, error) {
 	return b, nil
 }
 
-func (b *backend) paths() []*framework.Path {
+func (b *vraBackend) paths() []*framework.Path {
 	return []*framework.Path{
 		{
 			Pattern: framework.MatchAllRegex("path"),
@@ -103,7 +103,7 @@ func (b *backend) paths() []*framework.Path {
 	}
 }
 
-func (b *backend) handleExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
+func (b *vraBackend) handleExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
 	out, err := req.Storage.Get(ctx, req.Path)
 	if err != nil {
 		return false, errwrap.Wrapf("existence check failed: {{err}}", err)
@@ -112,7 +112,7 @@ func (b *backend) handleExistenceCheck(ctx context.Context, req *logical.Request
 	return out != nil, nil
 }
 
-func (b *backend) handleRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) handleRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	if req.ClientToken == "" {
 		return nil, fmt.Errorf("client token empty")
 	}
@@ -143,7 +143,7 @@ func (b *backend) handleRead(ctx context.Context, req *logical.Request, data *fr
 	return resp, nil
 }
 
-func (b *backend) handleWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) handleWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	if req.ClientToken == "" {
 		return nil, fmt.Errorf("client token empty")
 	}
@@ -174,7 +174,7 @@ func (b *backend) handleWrite(ctx context.Context, req *logical.Request, data *f
 	return nil, nil
 }
 
-func (b *backend) handleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *vraBackend) handleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	if req.ClientToken == "" {
 		return nil, fmt.Errorf("client token empty")
 	}
@@ -189,6 +189,56 @@ func (b *backend) handleDelete(ctx context.Context, req *logical.Request, data *
 	return nil, nil
 }
 
+// reset clears any client configuration for a new
+// backend to be configured
+func (b *vraBackend) reset() {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.client = nil
+}
+
+// invalidate clears an existing client configuration in
+// the backend
+func (b *vraBackend) invalidate(ctx context.Context, key string) {
+	if key == "config" {
+		b.reset()
+	}
+}
+
+// getClient locks the backend as it configures and creates a
+// a new client for the target API
+func (b *vraBackend) getClient(ctx context.Context, s logical.Storage) (*vraClient, error) {
+	b.lock.RLock()
+	unlockFunc := b.lock.RUnlock
+	defer func() { unlockFunc() }()
+
+	if b.client != nil {
+		return b.client, nil
+	}
+
+	b.lock.RUnlock()
+	b.lock.Lock()
+	unlockFunc = b.lock.Unlock
+
+	config, err := getConfig(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+
+	if config == nil {
+		config = new(vraConfig)
+	}
+
+	b.client, err = newClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.client, nil
+}
+
 const vraHelp = `
-The VRA backend is a secrets backend that gets new clients  stores that stores kv pairs in a map.
+The VRA backend dynamically generates user tokens.
+After mounting this backend, credentials to manage user tokens
+must be configured with the "config/" endpoints.
 `
