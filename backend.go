@@ -4,17 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/jsonutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"strings"
+	"sync"
 )
 
 // backend wraps the backend framework and adds a map for storing key value pairs
 type backend struct {
 	*framework.Backend
+	lock   sync.RWMutex
+	client *Client
 }
 
 var _ logical.Factory = Factory
@@ -41,11 +43,26 @@ func newBackend() (*backend, error) {
 	b := &backend{}
 
 	b.Backend = &framework.Backend{
-		Help:        strings.TrimSpace(vraHelp),
-		BackendType: logical.TypeLogical,
+		Help: strings.TrimSpace(vraHelp),
+		PathsSpecial: &logical.Paths{
+			LocalStorage: []string{},
+			SealWrapStorage: []string{
+				"config",
+				"role/*",
+			},
+		},
 		Paths: framework.PathAppend(
-			b.paths(),
+			pathRole(&b),
+			[]*framework.Path{
+				pathConfig(&b),
+				pathCredentials(&b),
+			},
 		),
+		Secrets: []*framework.Secret{
+			b.ClientToken(),
+		},
+		BackendType: logical.TypeLogical,
+		Invalidate:  b.invalidate,
 	}
 
 	return b, nil
@@ -173,5 +190,5 @@ func (b *backend) handleDelete(ctx context.Context, req *logical.Request, data *
 }
 
 const vraHelp = `
-The VRA backend is a dummy secrets backend that stores kv pairs in a map.
+The VRA backend is a secrets backend that gets new clients  stores that stores kv pairs in a map.
 `
