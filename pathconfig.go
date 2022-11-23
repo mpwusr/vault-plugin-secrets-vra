@@ -16,9 +16,9 @@ const (
 // vraConfig includes the minimum configuration
 // required to instantiate a new VRA client.
 type vraConfig struct {
-	Username string `json:"Username"`
-	Password string `json:"Password"`
-	URL      string `json:"DataCenter URL"`
+	Projectname string `json:"Projectname"`
+	Password    string `json:"Password"`
+	URL         string `json:"DataCenter URL"`
 }
 
 // pathConfig extends the Vault API with a `/config`
@@ -29,21 +29,21 @@ type vraConfig struct {
 // when you read the configuration.
 func pathConfig(b *vraBackend) *framework.Path {
 	return &framework.Path{
-		Pattern: "config",
+		Pattern: "config/" + framework.GenericNameRegex("name"),
 		Fields: map[string]*framework.FieldSchema{
-			"username": {
+			"projectname": {
 				Type:        framework.TypeString,
-				Description: "The username to access VRA Product API",
+				Description: "The projectname to access VRA Product API",
 				Required:    true,
 				DisplayAttrs: &framework.DisplayAttributes{
-					Name:      "Username",
+					Name:      "Projectname",
 					Sensitive: false,
 				},
 			},
 			"password": {
 				Type:        framework.TypeString,
-				Description: "The user's password to access HashiCups Product API",
-				Required:    true,
+				Description: "The user's password to access VRA Product API",
+				Required:    false,
 				DisplayAttrs: &framework.DisplayAttributes{
 					Name:      "Password",
 					Sensitive: true,
@@ -51,7 +51,7 @@ func pathConfig(b *vraBackend) *framework.Path {
 			},
 			"url": {
 				Type:        framework.TypeString,
-				Description: "The URL for the HashiCups Product API",
+				Description: "The URL for the VRA Product API",
 				Required:    true,
 				DisplayAttrs: &framework.DisplayAttributes{
 					Name:      "URL",
@@ -98,8 +98,8 @@ func (b *vraBackend) pathConfigRead(ctx context.Context, req *logical.Request, d
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"username": config.Username,
-			"url":      config.URL,
+			"projectname": config.Projectname,
+			"url":         config.URL,
 		},
 	}, nil
 }
@@ -120,10 +120,10 @@ func (b *vraBackend) pathConfigWrite(ctx context.Context, req *logical.Request, 
 		config = new(vraConfig)
 	}
 
-	if username, ok := data.GetOk("username"); ok {
-		config.Username = username.(string)
+	if projectname, ok := data.GetOk("projectname"); ok {
+		config.Projectname = projectname.(string)
 	} else if !ok && createOperation {
-		return nil, fmt.Errorf("missing username in configuration")
+		return nil, fmt.Errorf("missing projectname in configuration")
 	}
 
 	if url, ok := data.GetOk("url"); ok {
@@ -132,11 +132,11 @@ func (b *vraBackend) pathConfigWrite(ctx context.Context, req *logical.Request, 
 		return nil, fmt.Errorf("missing url in configuration")
 	}
 
-	if password, ok := data.GetOk("password"); ok {
-		config.Password = password.(string)
-	} else if !ok && createOperation {
-		return nil, fmt.Errorf("missing password in configuration")
-	}
+	//if password, ok := data.GetOk("password"); ok {
+	//	config.Password = password.(string)
+	//} else if !ok && createOperation {
+	//	return nil, fmt.Errorf("missing password in configuration")
+	//}
 
 	entry, err := logical.StorageEntryJSON(configStoragePath, config)
 	if err != nil {
@@ -184,13 +184,13 @@ func getConfig(ctx context.Context, s logical.Storage) (*vraConfig, error) {
 }
 
 // pathConfigHelpSynopsis summarizes the help text for the configuration
-const pathConfigHelpSynopsis = `Configure the HashiCups backend.`
+const pathConfigHelpSynopsis = `Configure the VRA backend.`
 
 // pathConfigHelpDescription describes the help text for the configuration
 const pathConfigHelpDescription = `
 The HashiCups secret backend requires credentials for managing
 JWTs issued to users working with the products API.
-You must sign up with a username and password and
-specify the HashiCups address for the products API
+You must sign up with a projectname and URI that
+specifies the VRA address for the products API
 before using this secrets backend.
 `

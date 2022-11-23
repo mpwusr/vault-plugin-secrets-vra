@@ -19,19 +19,19 @@ func newClient(config *vraConfig) (*vraClient, error) {
 		return nil, errors.New("client configuration was nil")
 	}
 
-	if config.Username == "" {
+	if config.Projectname == "" {
 		return nil, errors.New("client username was not defined")
 	}
 
-	if config.Password == "" {
-		return nil, errors.New("client password was not defined")
-	}
+	//if config.Password == "" {
+	//	return nil, errors.New("client password was not defined")
+	//}
 
 	if config.URL == "" {
 		return nil, errors.New("client URL was not defined")
 	}
 
-	c, err := vraclientgo.NewClient(&config.URL, &config.Username, &config.Password)
+	c, err := vraclientgo.NewClient(&config.URL, &config.Projectname, &config.Password)
 	if err != nil {
 		return nil, err
 	}

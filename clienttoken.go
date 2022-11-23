@@ -47,7 +47,7 @@ func (b *vraBackend) tokenRevoke(ctx context.Context, req *logical.Request, d *f
 
 	token := ""
 	// We passed the token using InternalData from when we first created
-	// the secret. This is because the HashiCups API uses the exact token
+	// the secret. This is because the vra API uses the exact token
 	// for revocation. From a security standpoint, your target API and client
 	// should use a token ID instead!
 	tokenRaw, ok := req.Secret.InternalData["token"]
